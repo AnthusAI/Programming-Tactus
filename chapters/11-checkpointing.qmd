@@ -1,0 +1,10 @@
+# Checkpointing
+
+*Complete reference for durability:*
+
+- Automatic checkpointing: what triggers it
+- What gets checkpointed
+- The `checkpoint()` primitive for manual checkpoints
+- Checkpoint storage backends
+- Resuming from checkpoints
+- Checkpoint inspection with `tactus trace-*`

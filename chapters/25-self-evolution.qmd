@@ -1,0 +1,10 @@
+# Self-Evolution Patterns
+
+*Agents that improve themselves:*
+
+- Agents reading their own definitions
+- Code generation and modification
+- Meta-agents that create agents
+- Safety considerations
+- Testing self-modified agents
+- The "agent as code" philosophy

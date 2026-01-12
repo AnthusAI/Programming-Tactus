@@ -1,0 +1,8 @@
+# Script Mode
+
+*Simplified procedure definitions:*
+
+- Top-level `input` and `output` declarations
+- Implicit main procedure wrapping
+- When to use script mode vs. explicit procedures
+- Limitations and tradeoffs

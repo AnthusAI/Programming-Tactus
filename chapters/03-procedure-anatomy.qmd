@@ -1,0 +1,10 @@
+# Procedure Anatomy
+
+*This chapter provides complete reference for procedures:*
+
+- Input declarations and types
+- Output declarations and validation
+- State declarations and schemas
+- The procedure function signature
+- Return values and output validation
+- Named procedures vs. main

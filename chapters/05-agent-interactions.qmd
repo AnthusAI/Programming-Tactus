@@ -1,0 +1,10 @@
+# Agent Interactions
+
+*Complete reference for interacting with agents:*
+
+- The `Agent("name").turn()` method
+- Per-turn overrides (tools, temperature, max_tokens)
+- Injecting context with `inject`
+- Message history management
+- Structured output schemas
+- Accessing agent responses

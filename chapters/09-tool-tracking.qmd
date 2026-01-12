@@ -1,0 +1,10 @@
+# Tool Tracking and Direct Invocation
+
+*Complete reference for tool tracking:*
+
+- `Tool.called()` - check if tool was called
+- `Tool.last_call()` - get last call details (args, result)
+- `Tool.last_result()` - get just the result
+- Direct tool invocation from Lua
+- Per-turn tool control patterns
+- Tool result summarization pattern

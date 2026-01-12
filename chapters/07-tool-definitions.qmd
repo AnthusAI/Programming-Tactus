@@ -1,0 +1,10 @@
+# Tool Definitions
+
+*Complete reference for defining tools:*
+
+- Inline tools with `Tool`
+- Toolsets with `Toolset`
+- Parameter schemas and types
+- Handler functions
+- Return values and result formatting
+- Tool descriptions for LLMs

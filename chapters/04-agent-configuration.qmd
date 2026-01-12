@@ -1,0 +1,10 @@
+# Agent Configuration
+
+*Complete reference for agent configuration:*
+
+- Provider selection (openai, bedrock, google)
+- Model selection and parameters
+- System prompts with template variables (`{input.name}`)
+- Initial messages
+- Toolsets and tool access
+- Message history filters

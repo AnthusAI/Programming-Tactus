@@ -1,0 +1,10 @@
+# File I/O
+
+*File operations in Tactus:*
+
+- CSV/TSV operations with `Csv`
+- JSON files with `File` and `Json`
+- Parquet files (via pyarrow)
+- HDF5 files (via h5py)
+- Excel files (via openpyxl)
+- Security and sandboxing

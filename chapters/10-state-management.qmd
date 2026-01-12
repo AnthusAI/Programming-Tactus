@@ -1,0 +1,10 @@
+# State Management Deep Dive
+
+*Complete reference for state:*
+
+- State schemas and type definitions
+- Default values and initialization
+- Type validation at runtime
+- State vs. local variables: when to use each
+- State inspection and debugging
+- State in checkpointing

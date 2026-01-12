@@ -1,0 +1,10 @@
+# Multi-Agent Workflows
+
+*Patterns for multi-agent systems:*
+
+- Designing agent roles
+- Agent handoffs
+- Shared vs. separate message histories
+- Coordination patterns
+- Sequential agent pipelines
+- Parallel agent execution

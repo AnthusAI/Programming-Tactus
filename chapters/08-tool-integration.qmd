@@ -1,0 +1,10 @@
+# Tool Integration
+
+*Integrating external tools:*
+
+- MCP server integration
+- Plugin tools from Python files
+- Combining and filtering toolsets
+- Per-agent tool access
+- Tool namespacing
+- Dynamic tool registration

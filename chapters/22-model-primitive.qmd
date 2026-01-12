@@ -1,0 +1,10 @@
+# Model Primitive
+
+*ML inference (non-conversational):*
+
+- The Model primitive vs. Agent
+- PyTorch backend
+- HTTP backend
+- HuggingFace Transformers backend
+- Classification and extraction
+- Checkpointing model calls

@@ -1,0 +1,10 @@
+# HITL Primitives
+
+*Complete reference for human-in-the-loop:*
+
+- `Human.approve()` - approval gates
+- `Human.input()` - free-form input
+- `Human.review()` - artifact review
+- Timeouts and default values
+- HITL declarations for reusable patterns
+- Context and metadata

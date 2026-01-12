@@ -1,0 +1,10 @@
+# Sub-Procedures
+
+*Calling procedures from procedures:*
+
+- `Procedure.run()` for synchronous calls
+- `Procedure.spawn()` for async execution
+- Input/output mapping
+- Recursive procedures
+- Depth limits and safety
+- Checkpointing in sub-procedures

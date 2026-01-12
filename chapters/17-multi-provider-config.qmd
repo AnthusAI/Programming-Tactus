@@ -1,0 +1,10 @@
+# Multi-Provider Configuration
+
+*Configuring LLM providers:*
+
+- OpenAI configuration
+- AWS Bedrock configuration
+- Google Gemini configuration
+- Environment variables and secrets
+- `.tactus/config.yml` reference
+- Default provider and model settings

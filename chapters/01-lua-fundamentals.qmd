@@ -1,0 +1,10 @@
+# Lua Fundamentals for Tactus
+
+*This chapter covers the Lua language features available in Tactus:*
+
+- Variables and types (nil, boolean, number, string, table, function)
+- Tables: arrays and maps
+- Control flow: if/then/else, while, for, repeat/until
+- Functions and closures
+- String manipulation
+- What's NOT available (sandboxed features)

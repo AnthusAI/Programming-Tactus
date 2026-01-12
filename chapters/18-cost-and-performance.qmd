@@ -1,0 +1,10 @@
+# Cost and Performance
+
+*Optimizing costs and performance:*
+
+- Understanding cost metrics
+- Token optimization strategies
+- Latency considerations
+- Caching strategies
+- Model selection tradeoffs
+- Cost tracking and reporting

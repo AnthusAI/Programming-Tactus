@@ -1,0 +1,10 @@
+# Omnichannel Deployment
+
+*Deploying HITL across channels:*
+
+- How HITL renders across channels
+- Web, Slack, SMS, Voice, Email integrations
+- Custom HITL handlers
+- Building platform integrations
+- Input type rendering
+- Typed input UI generation

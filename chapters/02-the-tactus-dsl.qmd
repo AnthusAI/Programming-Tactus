@@ -1,0 +1,9 @@
+# The Tactus DSL
+
+*This chapter covers the Tactus domain-specific language constructs:*
+
+- Top-level declarations: Agent, Tool, Procedure, Toolset
+- The function block pattern
+- Field definitions and type schemas
+- Comments and documentation conventions
+- File organization patterns

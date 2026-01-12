@@ -1,0 +1,10 @@
+# Evaluations Reference
+
+*Complete reference for evaluations:*
+
+- Dataset formats and loading (JSON, JSONL, CSV)
+- Evaluator types (contains, regex, llm_judge, tool_called, state_check, json_schema, range)
+- Trace inspection
+- Thresholds for CI/CD
+- Running evaluations with options
+- Interpreting results

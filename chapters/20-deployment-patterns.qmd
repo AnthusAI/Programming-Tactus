@@ -1,0 +1,10 @@
+# Deployment Patterns
+
+*Production deployment:*
+
+- CLI deployment
+- SDK integration
+- Storage backends (memory, file, custom)
+- HITL handler implementations
+- Scaling considerations
+- Monitoring and observability

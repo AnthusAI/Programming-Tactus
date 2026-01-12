@@ -1,0 +1,10 @@
+# Context Engineering
+
+*Advanced message history control:*
+
+- Message history filters
+- Token budgets
+- Selective visibility
+- Session management
+- `Session.inject_system()`
+- `Session.history()`, `Session.clear()`

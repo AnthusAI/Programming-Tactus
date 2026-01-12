@@ -1,0 +1,86 @@
+project:
+  type: book
+  output-dir: _output
+  post-render:
+    - "bash scripts/post-render.sh"
+
+metadata-files:
+  - book-links.yml
+  - tactus-target.yml
+
+filters:
+  - filters/include-code.lua
+
+book:
+  title: "Programming Tactus"
+  subtitle: "The Comprehensive Reference"
+  author: "Ryan Porter"
+  date: today
+  chapters:
+    - index.qmd
+    - part: "Part I: The Language"
+      chapters:
+        - chapters/01-lua-fundamentals.qmd
+        - chapters/02-the-tactus-dsl.qmd
+        - chapters/03-procedure-anatomy.qmd
+    - part: "Part II: Agents"
+      chapters:
+        - chapters/04-agent-configuration.qmd
+        - chapters/05-agent-interactions.qmd
+        - chapters/06-multi-agent-workflows.qmd
+    - part: "Part III: Tools"
+      chapters:
+        - chapters/07-tool-definitions.qmd
+        - chapters/08-tool-integration.qmd
+        - chapters/09-tool-tracking.qmd
+    - part: "Part IV: State and Durability"
+      chapters:
+        - chapters/10-state-management.qmd
+        - chapters/11-checkpointing.qmd
+        - chapters/12-sub-procedures.qmd
+    - part: "Part V: Human-in-the-Loop"
+      chapters:
+        - chapters/13-hitl-primitives.qmd
+        - chapters/14-omnichannel-deployment.qmd
+    - part: "Part VI: Testing and Evaluation"
+      chapters:
+        - chapters/15-bdd-reference.qmd
+        - chapters/16-evaluations-reference.qmd
+    - part: "Part VII: Production"
+      chapters:
+        - chapters/17-multi-provider-config.qmd
+        - chapters/18-cost-and-performance.qmd
+        - chapters/19-error-handling.qmd
+        - chapters/20-deployment-patterns.qmd
+    - part: "Part VIII: Advanced Topics"
+      chapters:
+        - chapters/21-context-engineering.qmd
+        - chapters/22-model-primitive.qmd
+        - chapters/23-file-io.qmd
+        - chapters/24-script-mode.qmd
+        - chapters/25-self-evolution.qmd
+
+format:
+  html:
+    theme: cosmo
+    code-copy: true
+    code-overflow: wrap
+    css: simple-style.css
+  pdf:
+    documentclass: scrbook
+    papersize: letter
+    fontsize: 11pt
+    include-in-header:
+      text: |
+        \usepackage{fvextra}
+        \DefineVerbatimEnvironment{Highlighting}{Verbatim}{breaklines,commandchars=\\\{\\\}}
+        \usepackage{graphicx}
+        \usepackage{libertinus}
+        \usepackage{tikz}
+        \usepackage{xcolor}
+        \definecolor{magenta}{RGB}{199,0,126}
+        \renewcommand{\maketitle}{}
+    include-before-body:
+      file: title-page.tex
+
+highlight-style: github

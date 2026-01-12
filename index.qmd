@@ -1,0 +1,35 @@
+# Preface {.unnumbered}
+
+Welcome to *Programming Tactus*.
+
+This book is the comprehensive reference for the Tactus programming language. Where *Learning Tactus* teaches you how to get started, *Programming Tactus* covers everything—every feature, every option, every pattern you'll need to build production systems.
+
+## Who This Book Is For
+
+This book is for developers who:
+
+- Have completed *Learning Tactus* or have equivalent experience
+- Need detailed reference documentation for Tactus features
+- Are building production agent systems
+- Want to understand advanced patterns and best practices
+
+## How This Book Is Organized
+
+- **Part I: The Language** covers Lua fundamentals and the Tactus DSL
+- **Part II: Agents** details agent configuration, interactions, and multi-agent patterns
+- **Part III: Tools** explains tool definitions, integrations, and tracking
+- **Part IV: State and Durability** covers state management, checkpointing, and sub-procedures
+- **Part V: Human-in-the-Loop** documents HITL primitives and omnichannel deployment
+- **Part VI: Testing and Evaluation** provides complete reference for BDD and evaluations
+- **Part VII: Production** covers configuration, cost optimization, and deployment
+- **Part VIII: Advanced Topics** explores context engineering, the model primitive, and self-evolution patterns
+
+## Using This Book
+
+Unlike *Learning Tactus*, this book is designed for reference. Read the sections you need, when you need them. Each chapter is self-contained with complete examples.
+
+## Companion Resources
+
+- **Learning Tactus** — Start here if you're new to Tactus
+- **Tactus in a Nutshell** — Quick reference for syntax and common patterns
+- **Tactus GitHub** — Source code, issues, and community

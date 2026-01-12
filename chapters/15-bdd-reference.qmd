@@ -1,0 +1,10 @@
+# BDD Specifications Reference
+
+*Complete reference for behavior-driven testing:*
+
+- Gherkin syntax in Tactus
+- Complete step definition reference
+- Custom step definitions with `step()`
+- Mocking for tests
+- Test isolation
+- Running tests with options
