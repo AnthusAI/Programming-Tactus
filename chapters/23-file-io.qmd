@@ -1,10 +1,558 @@
 # File I/O
 
-*File operations in Tactus:*
+This chapter covers file operations in Tactus, from basic file reading and writing to volume mounting and data format operations.
 
-- CSV/TSV operations with `Csv`
-- JSON files with `File` and `Json`
-- Parquet files (via pyarrow)
-- HDF5 files (via h5py)
-- Excel files (via openpyxl)
-- Security and sandboxing
+## In-Sandbox File Operations
+
+Tactus procedures run inside Docker containers by default. The container filesystem is ephemeral—files created during execution are destroyed when the container exits, unless they're written to mounted volumes.
+
+### Basic File Operations
+
+The `File` module provides core file operations:
+
+```lua
+-- Read a text file
+local content = File.read("/workspace/data.txt")
+
+-- Write a text file
+File.write("/workspace/output.txt", "Hello, World!")
+
+-- Check if a file exists
+if File.exists("/workspace/config.json") then
+  -- file exists
+end
+
+-- List files in a directory
+local files = File.list("/workspace")
+for _, file in ipairs(files) do
+  print(file)
+end
+```
+
+**Path conventions:**
+- `/workspace` - The current directory (mounted by default)
+- Absolute paths required - relative paths not supported inside procedures
+- Use forward slashes (`/`) even on Windows
+
+### JSON Operations
+
+The `Json` module handles JSON encoding and decoding:
+
+```lua
+-- Parse JSON string
+local data = Json.decode('{"name": "Alice", "age": 30}')
+print(data.name)  -- "Alice"
+
+-- Encode Lua table to JSON
+local json_str = Json.encode({
+  name = "Bob",
+  age = 25,
+  active = true
+})
+
+-- Read and parse JSON file
+local json_content = File.read("/workspace/data.json")
+local data = Json.decode(json_content)
+
+-- Write data as JSON file
+local output = Json.encode(results)
+File.write("/workspace/output.json", output)
+```
+
+### Filesystem Helpers
+
+The `tactus.io.fs` module provides additional filesystem utilities:
+
+```lua
+local fs = require("tactus.io.fs")
+
+-- Create directory
+fs.mkdir("/workspace/reports")
+
+-- Remove file
+fs.remove("/workspace/temp.txt")
+
+-- Check if path is a directory
+if fs.isdir("/workspace/data") then
+  -- it's a directory
+end
+
+-- Get file size
+local size = fs.size("/workspace/large_file.dat")
+```
+
+## Volume Mounting and Filesystem Boundaries
+
+Understanding how files get into and out of the container is crucial for working with procedures that need persistent storage or access to external data.
+
+### Default Mount Behavior
+
+**By default, Tactus mounts your current directory to `/workspace:rw`**, making it easy for procedures to:
+- Read source code and configuration files
+- Write outputs and reports
+- Work with project data naturally
+
+**Example - Reading project files:**
+```lua
+-- Procedure running in /Users/alice/my-project
+-- Current directory automatically mounted to /workspace
+
+-- Read a config file from the project
+local config = File.read("/workspace/config.json")
+
+-- Write results back to the project
+File.write("/workspace/results.csv", output_csv)
+```
+
+**This is safe because:**
+- **Container isolation**: Procedure can only access the mounted project directory, not your entire filesystem
+- **Git version control**: All changes are tracked and easily reviewed with `git diff`
+- **Project scope**: Only the current project is exposed, not home directory or system files
+
+### Path Resolution
+
+Volume mount paths in sidecar configuration files are resolved relative to the procedure's directory:
+
+```yaml
+# /Users/alice/my-project/analyze.tac.yml
+sandbox:
+  volumes:
+    - "../data:/workspace/data:ro"      # Resolves to /Users/alice/data
+    - "./output:/workspace/output:rw"   # Resolves to /Users/alice/my-project/output
+    - "~/shared:/shared:ro"              # Expands to /Users/alice/shared
+    - "/abs/path:/data:ro"               # Absolute path used as-is
+```
+
+### Additional Volume Mounts
+
+Mount other directories via sidecar configuration:
+
+```yaml
+# procedure.tac.yml
+sandbox:
+  volumes:
+    - "../external-repo:/workspace/external:ro"  # Sibling repository
+    - "/data/shared:/data:ro"                     # Shared data directory
+    - "./reports:/workspace/reports:rw"          # Output directory
+```
+
+**From Lua:**
+```lua
+-- Access files from mounted volumes
+local external_data = File.read("/workspace/external/data.csv")
+local shared_config = File.read("/data/config.json")
+
+-- Write to output directory
+File.write("/workspace/reports/summary.txt", summary)
+```
+
+### Read-Only vs Read-Write Mounts
+
+Control write permissions with volume modes:
+
+**Read-only (`:ro`)** - Safer when you don't need writes:
+```yaml
+sandbox:
+  volumes:
+    - "/sensitive/data:/data:ro"        # Cannot modify source data
+    - "../reference:/reference:ro"       # Cannot modify reference materials
+```
+
+**Read-write (`:rw`)** - When you need to modify files:
+```yaml
+sandbox:
+  volumes:
+    - "./cache:/cache:rw"                # Can update cache
+    - "./output:/workspace/output:rw"    # Can write outputs
+```
+
+**Default**: If you omit the mode, `:rw` is assumed.
+
+### Common Volume Mounting Patterns
+
+**Pattern 1: Multi-Repository Access**
+```yaml
+# Access multiple repositories for analysis
+sandbox:
+  volumes:
+    - "../tactus:/workspace/tactus:ro"
+    - "../tactus-examples:/workspace/examples:ro"
+    - "./analysis-output:/workspace/output:rw"
+```
+
+Use case: Cross-repository analysis, documentation generation, dependency scanning.
+
+**Pattern 2: Persistent Outputs**
+```yaml
+# Keep outputs separate from source
+sandbox:
+  volumes:
+    - "./data:/workspace/data:ro"        # Input data (read-only)
+    - "./output:/workspace/output:rw"    # Output directory (read-write)
+```
+
+Use case: Data processing pipelines, report generation, build artifacts.
+
+**Pattern 3: Shared Data Directories**
+```yaml
+# Access team-wide data
+sandbox:
+  volumes:
+    - "/data/team-datasets:/datasets:ro"     # Shared team data
+    - "~/local-cache:/cache:rw"               # Personal cache
+```
+
+Use case: ML training, data science workflows, shared reference data.
+
+**Pattern 4: Read-Only Project + Write-Only Output**
+```yaml
+# Principle of least privilege
+sandbox:
+  mount_current_dir: false                # Disable default RW mount
+  volumes:
+    - ".:/workspace:ro"                    # Read-only project access
+    - "./output:/workspace/output:rw"      # Write-only output
+```
+
+Use case: Production deployments, untrusted procedures, compliance requirements.
+
+### Disabling the Default Mount
+
+For procedures that should have limited filesystem access:
+
+```yaml
+# procedure.tac.yml
+sandbox:
+  mount_current_dir: false  # Disable automatic current directory mount
+  volumes:
+    - "./output:/workspace/output:rw"  # Only mount what's needed
+```
+
+**When to disable:**
+- Running untrusted procedures from unknown sources
+- Output-only workflows that don't need source access
+- Production deployments with strict permission requirements
+- Multi-tenant systems where procedures share a runtime
+
+### Cross-Platform Path Considerations
+
+**Path separators:**
+- Always use forward slashes (`/`) in Lua code
+- Docker handles path translation automatically
+- Works consistently across Windows, macOS, and Linux
+
+**Windows host paths:**
+```yaml
+# On Windows, use forward slashes or escaped backslashes
+sandbox:
+  volumes:
+    - "C:/data:/data:ro"               # Preferred (forward slashes)
+    - "C:\\data:/data:ro"              # Also works (escaped backslashes)
+```
+
+**macOS specific:**
+```yaml
+sandbox:
+  volumes:
+    - "~/Library/Application Support/MyApp:/config:ro"  # Spaces in paths OK
+```
+
+**Linux specific:**
+```yaml
+sandbox:
+  volumes:
+    - "/mnt/nas/shared:/data:ro"       # Network mounts
+    - "/home/$USER/data:/data:ro"      # Env vars NOT expanded (use absolute paths)
+```
+
+## Data Format Operations
+
+### CSV/TSV Operations
+
+The `Csv` module provides CSV and TSV parsing:
+
+```lua
+-- Read CSV file
+local csv_data = Csv.read("/workspace/data.csv")
+-- Returns: {headers = {"col1", "col2"}, rows = {{...}, {...}}}
+
+-- Access data
+for _, row in ipairs(csv_data.rows) do
+  print(row.col1, row.col2)
+end
+
+-- Write CSV file
+Csv.write("/workspace/output.csv", {
+  headers = {"name", "score"},
+  rows = {
+    {name = "Alice", score = 95},
+    {name = "Bob", score = 87}
+  }
+})
+
+-- TSV (tab-separated) works the same way
+local tsv_data = Csv.read("/workspace/data.tsv", {delimiter = "\t"})
+```
+
+### JSON Files
+
+Already covered above - see "JSON Operations" section.
+
+### Parquet Files
+
+Use Python modules via MCP tools or host-side tools for Parquet:
+
+```yaml
+# procedure.tac.yml
+mcp_servers:
+  parquet:
+    command: "python"
+    args: ["-m", "tactus_parquet_tool"]
+```
+
+```lua
+-- Read Parquet file via tool
+local result = call_tool("parquet.read", {
+  path = "/workspace/data.parquet"
+})
+```
+
+### HDF5 Files
+
+Use Python modules via MCP tools for HDF5:
+
+```yaml
+# procedure.tac.yml
+mcp_servers:
+  hdf5:
+    command: "python"
+    args: ["-m", "tactus_hdf5_tool"]
+```
+
+```lua
+-- Read HDF5 dataset via tool
+local result = call_tool("hdf5.read", {
+  path = "/workspace/data.h5",
+  dataset = "/data/measurements"
+})
+```
+
+### Excel Files
+
+Use Python modules via MCP tools for Excel:
+
+```yaml
+# procedure.tac.yml
+mcp_servers:
+  excel:
+    command: "python"
+    args: ["-m", "tactus_excel_tool"]
+```
+
+```lua
+-- Read Excel sheet via tool
+local result = call_tool("excel.read", {
+  path = "/workspace/report.xlsx",
+  sheet = "Summary"
+})
+```
+
+## Security and Sandboxing
+
+### Trust Boundary of Sidecar Files
+
+**Important**: Sidecar YAML files (`.tac.yml`) are **NOT sandboxed** like `.tac` procedure files.
+
+**Trust model:**
+- **`.tac` files**: Sandboxed Lua code - safe for user contributions, AI generation, public sharing
+- **`.yml` files**: Trusted configuration - can mount arbitrary paths, configure network, reference Docker images
+
+**Best practice**: If accepting user-contributed procedures, accept only `.tac` files. Review `.yml` configurations carefully before use.
+
+### When to Use Read-Only Mounts
+
+Use `:ro` (read-only) mounts when:
+- Accessing reference data that shouldn't be modified
+- Reading configuration files
+- Mounting external repositories for analysis
+- Accessing shared team datasets
+- Compliance requires immutable inputs
+
+**Example - Preventing accidental modifications:**
+```yaml
+sandbox:
+  volumes:
+    - "/data/production-db-export:/data:ro"  # Cannot accidentally modify prod data
+    - "./analysis:/workspace/analysis:rw"     # Can write analysis results
+```
+
+### Path Traversal Prevention
+
+Docker automatically prevents path traversal attacks:
+
+```lua
+-- This CANNOT escape the container to access host files outside mounts
+File.read("/../../../etc/passwd")  -- BLOCKED by container isolation
+
+-- Only mounted paths are accessible
+File.read("/workspace/data.txt")   -- OK (if current dir mounted)
+File.read("/data/file.csv")        -- OK (if /data mounted in config)
+File.read("/etc/passwd")           -- BLOCKED (not mounted)
+```
+
+**Container isolation guarantees:**
+- Procedures can only access explicitly mounted volumes
+- Cannot traverse outside mounted directories
+- Cannot access host filesystem beyond mounts
+- Cannot access other containers' filesystems
+
+### Security Checklist
+
+**For development:**
+- ✅ Default current directory mount is fine with Git version control
+- ✅ Review changes with `git diff` before committing
+- ✅ Use `:ro` for reference data when possible
+
+**For production:**
+- ✅ Consider disabling `mount_current_dir` for untrusted procedures
+- ✅ Use explicit volume mounts with minimal necessary permissions
+- ✅ Use `:ro` for all input data
+- ✅ Limit `:rw` mounts to specific output directories
+- ✅ Review all `.tac.yml` sidecar files before deployment
+- ✅ Never commit secrets in sidecar files (use host-side config instead)
+
+**For multi-tenant systems:**
+- ✅ Disable `mount_current_dir` by default
+- ✅ Use per-tenant volume isolation
+- ✅ Implement volume quota limits
+- ✅ Audit all filesystem access
+- ✅ Consider read-only mounts for shared resources
+
+## Examples
+
+### Example 1: Simple Report Generation
+
+Generate a report from project data:
+
+```lua
+-- read_and_report.tac
+Procedure {
+  function()
+    -- Read input data
+    local data_json = File.read("/workspace/sales_data.json")
+    local data = Json.decode(data_json)
+
+    -- Process data
+    local total = 0
+    for _, sale in ipairs(data.sales) do
+      total = total + sale.amount
+    end
+
+    -- Generate report
+    local report = string.format(
+      "Sales Report\n" ..
+      "Total Sales: $%.2f\n" ..
+      "Number of Transactions: %d\n",
+      total, #data.sales
+    )
+
+    -- Write report to project directory
+    File.write("/workspace/sales_report.txt", report)
+
+    return {status = "success", total = total}
+  end
+}
+```
+
+No sidecar file needed - uses default current directory mount.
+
+### Example 2: Cross-Repository Analysis
+
+Analyze multiple repositories:
+
+```yaml
+# analyze_repos.tac.yml
+sandbox:
+  volumes:
+    - "../repo1:/workspace/repo1:ro"
+    - "../repo2:/workspace/repo2:ro"
+    - "./analysis_output:/workspace/output:rw"
+```
+
+```lua
+-- analyze_repos.tac
+Procedure {
+  function()
+    -- Read files from multiple repos
+    local repo1_readme = File.read("/workspace/repo1/README.md")
+    local repo2_readme = File.read("/workspace/repo2/README.md")
+
+    -- Analyze (simplified example)
+    local analysis = {
+      repo1_lines = #repo1_readme,
+      repo2_lines = #repo2_readme
+    }
+
+    -- Write results
+    local output_json = Json.encode(analysis)
+    File.write("/workspace/output/analysis.json", output_json)
+
+    return analysis
+  end
+}
+```
+
+### Example 3: Secure Data Processing
+
+Process sensitive data with read-only inputs:
+
+```yaml
+# process_secure.tac.yml
+sandbox:
+  mount_current_dir: false  # Don't mount current directory
+  volumes:
+    - "/data/sensitive:/data:ro"           # Read-only sensitive data
+    - "./processed:/workspace/output:rw"   # Write-only output
+```
+
+```lua
+-- process_secure.tac
+Procedure {
+  function()
+    -- Can read from /data (read-only)
+    local input = File.read("/data/patient_records.csv")
+
+    -- Process and anonymize
+    local anonymized = anonymize_data(input)
+
+    -- Can write to /workspace/output (read-write)
+    File.write("/workspace/output/anonymized.csv", anonymized)
+
+    -- CANNOT modify source data
+    -- File.write("/data/patient_records.csv", "hacked")  -- BLOCKED (read-only)
+
+    -- CANNOT write to current directory
+    -- File.write("/workspace/malicious.txt", "data")  -- BLOCKED (not mounted)
+
+    return {status = "success"}
+  end
+}
+```
+
+## Summary
+
+**Key takeaways:**
+- Current directory is mounted to `/workspace:rw` by default for convenience
+- Container isolation provides security even with default mount
+- Additional volumes configured via `.tac.yml` sidecar files
+- Use `:ro` for inputs, `:rw` only where needed
+- Disable `mount_current_dir` for untrusted procedures or stricter security
+- Path traversal automatically prevented by container isolation
+- Sidecar `.yml` files are trusted configuration, not sandboxed code
+
+**Best practices:**
+- Keep inputs read-only when possible
+- Use Git to review filesystem changes before committing
+- Separate input and output directories in production
+- Review all sidecar configurations in untrusted scenarios
+- Test volume mounts with simple procedures before complex workflows
