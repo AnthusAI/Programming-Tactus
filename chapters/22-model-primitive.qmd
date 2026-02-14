@@ -192,9 +192,9 @@ Install requirements:
 
 - `pip install "tactus[ml]"`
 
-### `hf_sequence_classifier` (Hugging Face AutoModel)
+### `hf_sequence_classifier` (Hugging Face Sequence Classifier)
 
-This trainer uses Hugging Face's **AutoModelForSequenceClassification**, so it can load many different transformer architectures (BERT, RoBERTa, DeBERTa, DistilBERT, etc.) via a single interface.
+This trainer uses Hugging Face's **AutoModelForSequenceClassification**, so it can load many different transformer architectures (BERT, RoBERTa, DeBERTa, DistilBERT, etc.) via a single interface. The important thing is the task: **sequence classification**; the specific architecture is just a hyperparameter.
 
 Backend:
 
@@ -316,4 +316,3 @@ This keeps comparison reproducible:
 - The training config lives next to the model definition
 - The registry records which candidate produced which artifact
 - Evaluation can target `candidate/<name>` deterministically
-
