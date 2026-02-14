@@ -1,10 +1,319 @@
 # Model Primitive
 
-*ML inference (non-conversational):*
+The **Model primitive** is Tactus's abstraction for non-conversational ML inference: classification, extraction, scoring, and other "input in, output out" predictions.
 
-- The Model primitive vs. Agent
-- PyTorch backend
-- HTTP backend
-- HuggingFace Transformers backend
-- Classification and extraction
-- Checkpointing model calls
+Unlike an `Agent`, a `Model` is not a dialogue loop. It is designed to behave like a function call with:
+
+- Explicit input and output schemas
+- A stable, testable contract for your procedure logic
+- A registry-backed lifecycle for training, versioning, and evaluation
+
+This chapter describes the semantics and the configuration surface area.
+
+## Model vs Agent
+
+Use a **Model** when you want predictable inference (and you want to write deterministic control flow around it).
+
+Use an **Agent** when you want a conversational reasoning loop (multi-turn, tool use, open-ended behavior).
+
+In many production workflows, Models and Agents work together:
+
+1) Use a Model to make a fast decision (or score).
+2) Use an Agent only for hard cases (low confidence, missing information, ambiguous inputs).
+
+## Declaring a Model
+
+A Model declaration is a first-class top-level construct:
+
+```lua
+Model "imdb_nb" {
+  -- runtime / registry lookup
+  type = "registry",
+  name = "imdb_nb",
+  version = "latest",
+  input = { text = "string" },
+  output = { label = "string", confidence = "float" },
+
+  -- training config (used by `tactus train` and `tactus models evaluate`)
+  training = {
+    data = { /* ... */ },
+    candidates = { /* ... */ }
+  }
+}
+```
+
+Key fields:
+
+- `type`: where inference runs from (often `registry` in production).
+- `name`: registry identity for this model.
+- `version`: registry version/tag to load at runtime (commonly `latest`).
+- `input` / `output`: schema contracts.
+- `training`: training + evaluation configuration (see below).
+
+## Calling a Model in a Procedure
+
+At runtime, you fetch a model by name and call it like a function:
+
+```lua
+Procedure {
+  input = { text = field.string{required = true} },
+  output = { label = field.string{required = true}, confidence = field.number{} },
+  function(input)
+    local classifier = Model("imdb_nb")
+    local result = classifier({text = input.text})
+
+    -- Many backends return either:
+    -- - a raw output table, or
+    -- - a wrapper { output = <table>, ...metadata... }
+    local out = result.output or result
+
+    return { label = out.label, confidence = out.confidence }
+  end
+}
+```
+
+### Checkpointing semantics
+
+Model calls are checkpointed like other durable operations. On replay, Tactus restores the stored model result instead of re-running inference.
+
+## Mocking Models (CI-safe Specs)
+
+When you test a procedure, you usually want to test *your control flow*, not the ML model.
+
+Use `Mocks { ... }` to provide deterministic responses for a registry-backed model:
+
+```lua
+Mocks {
+  imdb_nb = {
+    conditional = {
+      {when = {text = "Great movie."}, returns = {label = "positive", confidence = 0.91}},
+      {when = {text = "Bad movie."}, returns = {label = "negative", confidence = 0.88}},
+      {when = {text = "Meh."}, returns = {label = "positive", confidence = 0.40}}
+    }
+  }
+}
+```
+
+This enables:
+
+- Fast, deterministic CI runs (`tactus test file.tac --mock`)
+- Realistic tests that assert behavior across model outputs ("if model says X, code does Y")
+
+## Registry Lifecycle (Train -> Register -> Run)
+
+The registry is the link between training and runtime.
+
+- Training writes: artifacts + metadata to the registry under `Model.name`.
+- Runtime reads: a version/tag under `Model.version`.
+
+### Versions and tags
+
+Tactus uses tags to make "the thing you want" easy to refer to:
+
+- `latest`: the most recent trained version for that model name
+- `candidate/<candidate_name>`: the most recent trained version for a specific candidate
+
+These tags matter when you want to compare training candidates without guessing which artifact belongs to which configuration.
+
+## Training Configuration (`Model.training`)
+
+Training is driven by the `training` section inside the Model declaration. This keeps runtime + training + evaluation config in one place (and makes the language feel like a language, not a scattered set of config files).
+
+### Data: `training.data`
+
+For standard library examples, a common pattern is Hugging Face datasets:
+
+```lua
+training = {
+  data = {
+    source = "hf",
+    name = "imdb",
+    train = "train",
+    test = "test",
+    shuffle = { train = true, test = true },
+    limit = { train = 25000, test = 25000 },
+    seed = 42,
+    text_field = "text",
+    label_field = "label"
+  },
+  candidates = { /* ... */ }
+}
+```
+
+Notes:
+
+- `limit` is the simplest way to scale training time up/down.
+- `text_field` / `label_field` let you point at the dataset columns you want.
+
+### Candidates: `training.candidates`
+
+You can define one or more candidate training configurations:
+
+```lua
+candidates = {
+  {
+    name = "nb-tfidf",
+    trainer = "naive_bayes",
+    hyperparameters = { /* ... */ }
+  },
+  {
+    name = "distilbert",
+    trainer = "hf_sequence_classifier",
+    hyperparameters = { /* ... */ }
+  }
+}
+```
+
+Each candidate produces a distinct artifact, and (by default) can be tagged as `candidate/<name>` in the registry.
+
+## Trainers and Hyperparameters
+
+Tactus trainers are intentionally "thin": they expose a small set of useful knobs, plus an escape hatch for passing through backend-native arguments when you need full control.
+
+### `naive_bayes` (scikit-learn)
+
+Backend:
+
+- trainer: `naive_bayes`
+- runtime backend: `sklearn`
+
+Common hyperparameters:
+
+```lua
+hyperparameters = {
+  alpha = 1.0,
+  max_features = 50000,
+  ngram_min = 1,
+  ngram_max = 2
+}
+```
+
+Install requirements:
+
+- `pip install "tactus[ml]"`
+
+### `hf_sequence_classifier` (Hugging Face AutoModel)
+
+This trainer uses Hugging Face's **AutoModelForSequenceClassification**, so it can load many different transformer architectures (BERT, RoBERTa, DeBERTa, DistilBERT, etc.) via a single interface.
+
+Backend:
+
+- trainer: `hf_sequence_classifier`
+- runtime backend: `hf_sequence_classifier`
+
+Minimum required hyperparameters:
+
+```lua
+hyperparameters = {
+  model = "distilbert-base-uncased",
+}
+```
+
+Common hyperparameters:
+
+```lua
+hyperparameters = {
+  model = "distilbert-base-uncased",
+  labels = {"negative", "positive"},
+  epochs = 1,
+  batch_size = 8,
+  learning_rate = 2e-5,
+  max_length = 256,
+  truncation = true,
+
+  -- Full control escape hatch: passed through to HF TrainingArguments.
+  training_args = {
+    logging_steps = 10,
+    save_strategy = "no",
+    eval_strategy = "no",
+    weight_decay = 0.0,
+    warmup_steps = 0,
+    gradient_accumulation_steps = 1,
+    seed = 42
+  }
+}
+```
+
+Install requirements:
+
+- `pip install "tactus[hf]"`
+
+## GPU and Device Control
+
+### Training (Hugging Face)
+
+Hugging Face training uses the standard Transformers + PyTorch device selection behavior:
+
+- If CUDA is available, training will typically use GPU by default.
+- If no GPU is available, it runs on CPU.
+
+To force CPU training, set:
+
+```lua
+hyperparameters = {
+  model = "distilbert-base-uncased",
+  training_args = {
+    no_cuda = true
+  }
+}
+```
+
+For advanced setups (multi-GPU, mixed precision, etc.), use `training_args` to pass through the corresponding `TrainingArguments` keys.
+
+### Inference (runtime)
+
+Some backends accept a `device` parameter for inference. For example, the Hugging Face sequence classifier backend can be configured to move the model to a target device:
+
+```lua
+Model "imdb_hf" {
+  type = "hf_sequence_classifier",
+  name = "imdb_hf",
+  device = "cuda", -- or "cpu", "mps"
+  input = { text = "string" },
+  output = { label = "string", confidence = "float" },
+}
+```
+
+When the model is loaded from the registry, the registry backend can pass through device configuration in the same way.
+
+## CLI: Training and Evaluation
+
+### Train
+
+Train a specific model from a file (required when multiple models exist in one file):
+
+```bash
+tactus train path/to/file.tac --model imdb_nb
+```
+
+Training reads `Model.training` and registers artifacts + metadata under `Model.name`.
+
+### Evaluate
+
+Evaluate a registry-backed model against the test split declared in `Model.training.data`:
+
+```bash
+tactus models evaluate path/to/file.tac --model imdb_nb
+```
+
+Version resolution:
+
+- Default: evaluate `latest`
+- Evaluate a candidate tag: `--candidate nb-tfidf` (uses `candidate/nb-tfidf`)
+- Evaluate an explicit version/tag: `--version latest` (or a version id/tag if supported)
+
+Evaluation reports standard classification metrics:
+
+- accuracy
+- precision / recall / F1 (interpretation depends on label mapping and class balance)
+
+## Comparing Multiple Model Implementations
+
+A common workflow is to define multiple candidates (or multiple Models) in the same file, train them, and then evaluate them using tags.
+
+This keeps comparison reproducible:
+
+- The training config lives next to the model definition
+- The registry records which candidate produced which artifact
+- Evaluation can target `candidate/<name>` deterministically
+
