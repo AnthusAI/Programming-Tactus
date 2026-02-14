@@ -1,10 +1,96 @@
 # Agent Interactions
 
-*Complete reference for interacting with agents:*
+This chapter describes how to *call* an Agent, how to control its capabilities per turn, and how to structure agent usage so that your procedures remain testable.
 
-- The `Agent("name").turn()` method
-- Per-turn overrides (tools, temperature, max_tokens)
-- Injecting context with `inject`
-- Message history management
-- Structured output schemas
-- Accessing agent responses
+## The Canonical Call Pattern
+
+Agents are callable. You call the agent value like a function:
+
+```lua
+result = triage_agent({message = "Classify this message."})
+```
+
+Important notes:
+
+- `triage_agent` must be declared as `triage_agent = Agent { ... }` at top level.
+- Lookup patterns like `Agent("triage_agent")(...)` are deprecated in the current DSL.
+
+## Inputs: `message`, context fields, and overrides
+
+The call input is a table. The most common field is `message`:
+
+```lua
+triage_agent({message = "Please reset my password"})
+```
+
+Anything besides `message` and a small set of override keys is treated as context and may be used for prompt templates or logging.
+
+## Per-turn Overrides (Capability Control)
+
+Per-turn overrides are the core technique for keeping agent behavior safe and deterministic.
+
+### Tools
+
+Override tools per call:
+
+```lua
+-- Full tools turn
+triage_agent({message = "Gather facts.", tools = {lookup_customer, done}})
+
+-- No-tools summarization/decision turn
+triage_agent({message = "Summarize and decide. No new tool calls.", tools = {}})
+```
+
+### Generation params
+
+You can also override common generation parameters per call:
+
+```lua
+triage_agent({
+  message = "Write the response.",
+  temperature = 0.2,
+  max_tokens = 200
+})
+```
+
+## Reading the Result
+
+Agent calls return a result object. Depending on configuration and backend, you may interact with it in a few common ways:
+
+- `result.response` (most common)
+- `triage_agent.output` (convenience: last response text)
+
+If you need a stable, typed output contract, prefer a **Model** for inference or structure outputs via your Procedure schema and validation.
+
+## Making Agents Testable
+
+Agents are non-deterministic; your correctness story should not depend on the exact free-form text.
+
+Instead, structure correctness around:
+
+- tool calls (and tool results)
+- explicit procedure state
+- bounded loops and stopping conditions (often via a `done` tool)
+- specifications (BDD) that assert observable behavior
+
+## Mocking Agents in Specs (CI-safe)
+
+In CI you usually do not want to call a real LLM. Use `Mocks { ... }` to provide deterministic agent behavior:
+
+```lua
+Mocks {
+  triage_agent = {
+    tool_calls = {
+      {tool = "lookup_customer", args = {id = "123"}},
+      {tool = "done", args = {reason = "Classified"}}
+    },
+    message = "billing"
+  }
+}
+```
+
+Run specs in mock mode:
+
+```bash
+tactus test file.tac --mock
+```

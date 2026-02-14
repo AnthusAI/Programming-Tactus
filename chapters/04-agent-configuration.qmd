@@ -1,10 +1,104 @@
 # Agent Configuration
 
-*Complete reference for agent configuration:*
+This chapter describes the stable configuration surface area of the **Agent primitive**.
 
-- Provider selection (openai, bedrock, google)
-- Model selection and parameters
-- System prompts with template variables (`{input.name}`)
-- Initial messages
-- Toolsets and tool access
-- Message history filters
+An Agent is stateful and multi-turn: it can call tools, accumulate message history, and iterate until done. That flexibility is powerful, but it also means the *configuration* is where most reliability and safety decisions are made.
+
+## Declaring an Agent
+
+Agents are declared at top level using assignment syntax:
+
+```lua
+local done = require("tactus.tools.done")
+
+lookup_customer = Tool {
+  description = "Look up a customer record",
+  input = { id = field.string{required = true} },
+  function(args)
+    return {id = args.id, plan = "pro"}
+  end
+}
+
+triage_agent = Agent {
+  provider = "openai",
+  model = "gpt-4o-mini",
+  system_prompt = [[
+You triage support messages into labels: billing, account, bug, other.
+Use lookup_customer when you need account context. Call done when finished.
+  ]],
+  tools = {lookup_customer, done}
+}
+```
+
+Notes:
+
+- Prefer assignment syntax (`triage_agent = Agent { ... }`). Curried syntax (`Agent "triage_agent" { ... }`) is deprecated.
+- Agents are callable: you invoke the variable like a function (see Chapter 05).
+
+## Provider and Model Selection
+
+Agent declarations typically specify:
+
+- `provider`: the provider backend name (e.g. `"openai"`, `"bedrock"`, `"google"`)
+- `model`: the provider-specific model identifier
+
+In many codebases, you will centralize provider/model choice in environment configuration, and keep the agent declaration focused on:
+
+- the system prompt (role + constraints)
+- tool access
+- deterministic orchestration patterns (per-turn tool control, bounded loops, explicit stop conditions)
+
+## System Prompt (and Template Variables)
+
+`system_prompt` is the instruction that frames every agent turn.
+
+Tactus supports template variables inside prompts (for example: `{input.customer_id}`), so you can parameterize a single agent configuration for different procedure inputs.
+
+Best practice:
+
+- Put *rules* in the system prompt (what to do, what not to do, required invariants).
+- Put *data* in the runtime message/context (so it is easy to test and reason about).
+
+## Tool Access (and Capability Boundaries)
+
+Tools are an agent's capability boundary.
+
+### `tools = {...}`
+
+The `tools` field defines the default set of tools and toolsets available to an agent.
+
+You can pass:
+
+- individual `Tool { ... }` declarations
+- `Toolset { ... }` declarations (group tools under a single handle)
+- stdlib toolsets by string name (e.g. `"filesystem"`) when supported by your runtime configuration
+
+### Per-turn tool restriction (recommended)
+
+Even if an agent has tools, you should often restrict tools per call:
+
+```lua
+-- Full tools turn
+triage_agent({message = "Investigate and gather facts.", tools = {lookup_customer, done}})
+
+-- Summarize / decide with no tools
+triage_agent({message = "Summarize findings. No new tool calls.", tools = {}})
+```
+
+This pattern is one of the most effective ways to reduce runaway tool loops and make behavior more testable.
+
+## Generation and Execution Parameters
+
+Agents support a small set of generation parameters that you can set on the declaration, and override per call when needed.
+
+Common fields:
+
+- `temperature` (default: 0.7)
+- `max_tokens` (optional)
+- `module` (default: `"Raw"`, case-insensitive; also supports `"Predict"` and `"ChainOfThought"`)
+
+Per-call overrides are documented in Chapter 05.
+
+## Initial Message
+
+Some workflows benefit from sending an `initial_message` on the first turn (for example: bootstrapping a plan). Prefer explicit procedure calls when possible; use `initial_message` only when it simplifies a pattern that is otherwise awkward.

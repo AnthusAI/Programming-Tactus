@@ -1,10 +1,90 @@
 # Tool Integration
 
-*Integrating external tools:*
+Tools are the primary way to make agents *observable* and *reliable*.
 
-- MCP server integration
-- Plugin tools from Python files
-- Combining and filtering toolsets
-- Per-agent tool access
-- Tool namespacing
-- Dynamic tool registration
+This chapter covers:
+
+- Defining tools in Tactus
+- Grouping tools into Toolsets
+- Wiring tools/toolsets into Agents
+- Keeping tool usage testable (mock mode)
+
+## Defining a Tool
+
+A `Tool` has:
+
+- a description (what it does)
+- an input schema (what arguments it expects)
+- an implementation function (what it returns)
+
+```lua
+local done = require("tactus.tools.done")
+
+get_weather = Tool {
+  description = "Get the forecast for a city",
+  input = { city = field.string{required = true} },
+  function(args)
+    -- Replace with a real API call in production.
+    if args.city == "San Francisco" then
+      return {temp_f = 58, conditions = "fog"}
+    end
+    return {temp_f = 72, conditions = "clear"}
+  end
+}
+```
+
+## Grouping Tools with Toolsets
+
+Toolsets are a convenience for bundling a set of tools into a single handle that can be reused across agents.
+
+### Lua toolsets
+
+```lua
+math = Toolset {
+  type = "lua",
+  tools = {get_weather}
+}
+```
+
+### Stdlib toolsets (by name)
+
+Some runtimes expose standard tool bundles (for example: `"filesystem"`). When supported, you can reference them by string name inside `Agent.tools`.
+
+## Wiring Tools into an Agent
+
+`Agent.tools` defines the default capability boundary:
+
+```lua
+worker = Agent {
+  provider = "openai",
+  model = "gpt-4o-mini",
+  system_prompt = "Use tools when needed, then call done.",
+  tools = {math, get_weather, done}
+}
+```
+
+Then, per call, you can further restrict capabilities:
+
+```lua
+worker({message = "Fetch the weather.", tools = {get_weather, done}})
+worker({message = "Summarize results only.", tools = {}})
+```
+
+## MCP Toolsets
+
+Tactus can also load toolsets from MCP servers via the `Toolset` primitive. Conceptually:
+
+- an MCP server provides a catalog of tools
+- a Toolset selects which tools are available
+- an Agent references that Toolset in `tools = {...}`
+
+In mock mode, if an MCP server is not configured, Tactus can treat the toolset as an empty placeholder so that examples and specs remain runnable. You still need to mock the *tool calls* you expect in `Mocks { ... }`.
+
+## Testing Tool Usage
+
+For deterministic CI, run with `--mock` and use `Mocks { ... }` to:
+
+- mock agent behavior (tool calls + messages)
+- mock tool outputs when your procedure logic depends on them
+
+This keeps your tests focused on the orchestration logic: "when tools return X, the procedure does Y."
