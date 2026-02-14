@@ -21,6 +21,12 @@ In many production workflows, Models and Agents work together:
 1) Use a Model to make a fast decision (or score).
 2) Use an Agent only for hard cases (low confidence, missing information, ambiguous inputs).
 
+If you have not read the Agent chapters yet, see:
+
+- [Agent configuration](04-agent-configuration.qmd)
+- [Agent interactions](05-agent-interactions.qmd)
+- [Multi-agent workflows](06-multi-agent-workflows.qmd)
+
 ## Declaring a Model
 
 A Model declaration is a first-class top-level construct:
@@ -114,6 +120,16 @@ Tactus uses tags to make "the thing you want" easy to refer to:
 - `candidate/<candidate_name>`: the most recent trained version for a specific candidate
 
 These tags matter when you want to compare training candidates without guessing which artifact belongs to which configuration.
+
+### The registry contract
+
+The registry is the interface between training and runtime. A few things must stay coherent over time:
+
+- `Model.name` is the identity. Training writes under this name; runtime reads under this name.
+- `Model.input` / `Model.output` are the contract. Your procedure logic should assume these schemas.
+- The *backend type* (e.g. `sklearn`, `hf_sequence_classifier`) must match the artifact that was trained and registered.
+
+If you change the schema in a way that breaks callers, treat it like a breaking API change: either use a new model name, or coordinate a version/tag transition and update procedures that consume it.
 
 ## Training Configuration (`Model.training`)
 
@@ -237,6 +253,15 @@ hyperparameters = {
 Install requirements:
 
 - `pip install "tactus[hf]"`
+
+## Naive Bayes vs HF Sequence Classifier
+
+These two trainers cover a useful baseline spectrum:
+
+| Trainer | Strengths | Tradeoffs | Extras |
+|---|---|---|---|
+| `naive_bayes` | Very fast on CPU, strong baseline for text | Less accurate than modern transformers on many tasks | `tactus[ml]` |
+| `hf_sequence_classifier` | Higher ceiling, supports many transformer backbones via AutoModel | Slower, heavier dependencies; benefits from GPU | `tactus[hf]` |
 
 ## GPU and Device Control
 
