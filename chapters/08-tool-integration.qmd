@@ -56,8 +56,7 @@ Some runtimes expose standard tool bundles (for example: `"filesystem"`). When s
 
 ```lua
 worker = Agent {
-  provider = "openai",
-  model = "gpt-4o-mini",
+  model = "openai/gpt-4o-mini",
   system_prompt = "Use tools when needed, then call done.",
   tools = {math, get_weather, done}
 }

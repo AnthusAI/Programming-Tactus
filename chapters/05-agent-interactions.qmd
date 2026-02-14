@@ -57,7 +57,7 @@ triage_agent({
 
 Agent calls return a result object. Depending on configuration and backend, you may interact with it in a few common ways:
 
-- `result.response` (most common)
+- `result.output` (most common)
 - `triage_agent.output` (convenience: last response text)
 
 If you need a stable, typed output contract, prefer a **Model** for inference or structure outputs via your Procedure schema and validation.

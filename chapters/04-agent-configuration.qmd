@@ -20,8 +20,7 @@ lookup_customer = Tool {
 }
 
 triage_agent = Agent {
-  provider = "openai",
-  model = "gpt-4o-mini",
+  model = "openai/gpt-4o-mini",
   system_prompt = [[
 You triage support messages into labels: billing, account, bug, other.
 Use lookup_customer when you need account context. Call done when finished.
