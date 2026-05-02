@@ -79,6 +79,29 @@ Tactus can also load toolsets from MCP servers via the `Toolset` primitive. Conc
 
 In mock mode, if an MCP server is not configured, Tactus can treat the toolset as an empty placeholder so that examples and specs remain runnable. You still need to mock the *tool calls* you expect in `Mocks { ... }`.
 
+## Host-Registered Modules
+
+Embedding hosts can register Python-backed modules that Tactus code imports with `require(...)`. This is different from exposing many individual tools to an agent. A host module is a programmatic API surface: the host chooses the capability boundary, and the Tactus snippet composes calls inside the sandbox.
+
+```python
+runtime = TactusRuntime(procedure_id="host-mcp-gateway")
+runtime.register_python_module("your_app", app_module)
+```
+
+```lua
+local app = require("your_app")
+
+local topics = app.docs.list({})
+local customer = app.customers.get({ id = "customer-123" })
+
+return {
+  docs_available = #topics,
+  customer_name = customer.name,
+}
+```
+
+Use this pattern when the host application has a broad SDK-like surface and you want the client to call one small gateway instead of loading a large catalog of tool schemas. This keeps the base model context focused: the gateway can expose `api.list` and `docs.get`-style discovery so the agent loads detailed docs and examples only for the capability it needs. The model can compose the host APIs into a task-specific tool by writing a short Tactus snippet, while the host still owns authentication, policy, traces, budgets, HITL, and async handles. Plexus is one production example: its MCP server exposes `execute_tactus`, while the runtime injects `plexus` as a global for scorecards, scores, feedback, evaluations, reports, procedures, documentation, budgets, and handles.
+
 ## Testing Tool Usage
 
 For deterministic CI, run with `--mock` and use `Mocks { ... }` to:
